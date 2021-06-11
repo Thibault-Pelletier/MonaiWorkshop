@@ -1,0 +1,15 @@
+monai>=0.5.3
+nibabel
+pillow
+tensorboard
+torch>=1.5
+numpy>=1.17
+scikit-image>=0.14.2
+tqdm>=4.47.0
+itk>=5.0, <=5.1.2
+gdown>=3.6.4
+scipy
+pytorch-ignite==0.4.4
+torchvision
+matplotlib
+scikit-learn
