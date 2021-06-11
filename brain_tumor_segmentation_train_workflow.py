@@ -19,6 +19,7 @@ import monai
 import numpy as np
 import torch
 from ignite.metrics import Accuracy
+from monai.apps import download_url, extractall
 from monai.config import print_config
 from monai.data import CacheDataset, DataLoader
 from monai.engines import SupervisedTrainer, SupervisedEvaluator
@@ -38,15 +39,26 @@ logging.basicConfig(level=logging.INFO)
 print_config()
 
 # Setup data directory
-root_dir = os.path.dirname(__file__)
+root_dir = "./"
 data_dir = os.path.join(root_dir, "data")
-train_dirs = [os.path.join(data_dir, "train", "HGG"), os.path.join(data_dir, "train", "LGG")]
-test_dir = os.path.join(data_dir, "test", "HGG_LGG")
 res_dir = os.path.join(root_dir, "results")
 log_dir = os.path.join(res_dir, "runs")
 os.makedirs(res_dir, exist_ok=True)
 
+# Download data if necessary
+# resource = "https://drive.google.com/uc?id=1aMc9eW_fGCphGBjAKDedxu8-aJVcSczd"  # Full 2.9 GB dataset
+resource = "https://drive.google.com/uc?id=1rZwPR3CFlFmYTev2YkxTJDfmLrbCiy63"  # Small 200 MB dataset subset
+
+compressed_file = os.path.join(root_dir, "brats2015 - data.zip")
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+    download_url(url=resource, filepath=compressed_file)
+    extractall(filepath=compressed_file, output_dir=data_dir)
+
 # Set dataset path
+train_dirs = [os.path.join(data_dir, "train", "HGG"), os.path.join(data_dir, "train", "LGG")]
+test_dir = os.path.join(data_dir, "test", "HGG_LGG")
+
 data_dicts = []
 for train_dir in train_dirs:
     test_folders = os.listdir(train_dir)
@@ -109,7 +121,7 @@ train_transforms = Compose([LoadImaged(keys=["image", "label"]),  #
                             ScaleIntensityd(keys=["image"]),  #
                             CropForegroundd(keys=["image", "label"], source_key="image"),  #
                             RandCropByPosNegLabeld(keys=["image", "label"], label_key="label",  #
-                                                   spatial_size=(48, 48, 48), pos=1, neg=1, num_samples=4,  #
+                                                   spatial_size=(96, 96, 96), pos=1, neg=1, num_samples=4,  #
                                                    image_key="image", image_threshold=0, ),  #
                             ToTensord(keys=["image", "label"]),  #
                             ])
@@ -128,7 +140,7 @@ val_transforms = Compose([LoadImaged(keys=["image", "label"]),  #
 # use batch_size=2 to load images and use RandCropByPosNegLabeld
 # to generate 2 x 4 images for network training
 train_ds = CacheDataset(data=train_files, transform=train_transforms, num_workers=0)
-train_loader = DataLoader(train_ds, batch_size=128, shuffle=True)
+train_loader = DataLoader(train_ds, batch_size=2, shuffle=True)
 
 val_ds = CacheDataset(data=val_files, transform=val_transforms, num_workers=0)
 val_loader = DataLoader(val_ds, batch_size=1)
@@ -170,7 +182,7 @@ evaluator = SupervisedEvaluator(
     device=device,  #
     val_data_loader=val_loader,  #
     network=model,  #
-    inferer=SlidingWindowInferer(roi_size=(48, 48, 48), sw_batch_size=4, overlap=0.5),  #
+    inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4),  #
     post_transform=val_post_transforms,  #
     key_val_metric={  #
         "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))  #

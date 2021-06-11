@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+from monai.apps import download_url, extractall
 from monai.utils import first, set_determinism
 from monai.transforms import (AsDiscrete, AddChanneld, Compose, CropForegroundd, LoadImaged,
                               Orientationd, RandCropByPosNegLabeld, Spacingd, ToTensord,
@@ -33,14 +33,25 @@ from sklearn.metrics import (ConfusionMatrixDisplay, classification_report, conf
 print_config()
 
 # Setup data directory
-root_dir = os.path.dirname(__file__)
+root_dir = "./"
 data_dir = os.path.join(root_dir, "data")
-train_dirs = [os.path.join(data_dir, "train", "HGG"), os.path.join(data_dir, "train", "LGG")]
-test_dir = os.path.join(data_dir, "test", "HGG_LGG")
 res_dir = os.path.join(root_dir, "results")
 os.makedirs(res_dir, exist_ok=True)
 
+# Download data if necessary
+# resource = "https://drive.google.com/uc?id=1aMc9eW_fGCphGBjAKDedxu8-aJVcSczd"  # Full 2.9 GB dataset
+resource = "https://drive.google.com/uc?id=1rZwPR3CFlFmYTev2YkxTJDfmLrbCiy63"  # Small 200 MB dataset subset
+
+compressed_file = os.path.join(root_dir, "brats2015 - data.zip")
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+    download_url(url=resource, filepath=compressed_file)
+    extractall(filepath=compressed_file, output_dir=data_dir)
+
 # Set dataset path
+train_dirs = [os.path.join(data_dir, "train", "HGG"), os.path.join(data_dir, "train", "LGG")]
+test_dir = os.path.join(data_dir, "test", "HGG_LGG")
+
 data_dicts = []
 for train_dir in train_dirs:
     test_folders = os.listdir(train_dir)
@@ -104,7 +115,7 @@ train_transforms = Compose([LoadImaged(keys=["image", "label"]),  #
                             ScaleIntensityd(keys=["image"]),  #
                             CropForegroundd(keys=["image", "label"], source_key="image"),  #
                             RandCropByPosNegLabeld(keys=["image", "label"], label_key="label",  #
-                                                   spatial_size=(48, 48, 48), pos=1, neg=1, num_samples=4,  #
+                                                   spatial_size=(96, 96, 96), pos=1, neg=1, num_samples=4,  #
                                                    image_key="image", image_threshold=0, ),  #
                             ToTensord(keys=["image", "label"]),  #
                             ])
@@ -156,10 +167,12 @@ model = UNet(dimensions=3,  #
              num_res_units=2, norm=Norm.BATCH, ).to(device)  #
 
 loss_function = DiceLoss(sigmoid=True)
-optimizer = torch.optim.Adam(model.parameters(), 1e-4)
+optimizer = torch.optim.Adam(model.parameters(), 1e-3)
 
 # Execute a typical PyTorch training process
-max_epochs = 2
+
+max_epochs = 50
+# max_epochs = 300
 val_interval = 2
 best_metric = -1
 best_metric_epoch = -1
@@ -196,7 +209,7 @@ for epoch in range(max_epochs):
             metric_count = 0
             for val_data in val_loader:
                 val_inputs, val_labels = (val_data["image"].to(device), val_data["label"].to(device),)
-                roi_size = (48, 48, 48)
+                roi_size = (96, 96, 96)
                 sw_batch_size = 4
                 val_outputs = sliding_window_inference(val_inputs, roi_size, sw_batch_size, model)
                 val_outputs = post_pred(val_outputs)
@@ -217,7 +230,6 @@ for epoch in range(max_epochs):
 
 print(f"train completed, best_metric: {best_metric:.4f} "
       f"at epoch: {best_metric_epoch}")
-
 
 # Plot the loss and metric
 plt.figure("train", (12, 6))
@@ -244,7 +256,7 @@ with torch.no_grad():
         if i >= 10:
             break
 
-        roi_size = (48, 48, 48)
+        roi_size = (96, 96, 96)
         sw_batch_size = 4
         val_outputs = sliding_window_inference(val_data["image"].to(device), roi_size, sw_batch_size, model)
         # plot the slice [:, :, 80]
@@ -270,7 +282,7 @@ with torch.no_grad():
         if i >= 10:
             break
 
-        roi_size = (48, 48, 48)
+        roi_size = (96, 96, 96)
 
         sw_batch_size = 4
         outputs = sliding_window_inference(val_data["image"].to(device), roi_size, sw_batch_size, model)
@@ -279,7 +291,6 @@ with torch.no_grad():
 
         y_pred = torch.cat([y_pred, outputs.flatten()], dim=0)
         y = torch.cat([y, labels.flatten()], dim=0)
-
 
 print(classification_report(y.numpy(), y_pred.numpy(), target_names=["non-tumor", "tumor"]))
 
