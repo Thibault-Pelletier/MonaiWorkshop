@@ -166,7 +166,7 @@ val_loader = DataLoader(val_ds, batch_size=1)
 
 # Create Model, Loss, Optimizer
 # standard PyTorch program style: create UNet, DiceLoss and Adam optimizer
-device = torch.device("cuda:0")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = UNet(dimensions=3,  #
              in_channels=1,  #
              out_channels=1,  #
@@ -257,7 +257,7 @@ plt.show()
 
 # Check best model output with the input image and label for some of the validation data
 # model.load_state_dict(torch.load(os.path.join(res_dir, "best_metric_model.pth")))
-model.load_state_dict(torch.load(trained_model_path))
+model.load_state_dict(torch.load(trained_model_path, map_location=device))
 model.eval()
 
 with torch.no_grad():
