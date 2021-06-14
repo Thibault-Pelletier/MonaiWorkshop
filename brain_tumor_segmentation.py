@@ -22,7 +22,7 @@ from monai.networks.layers import Norm
 from monai.metrics import compute_meandice
 from monai.losses import DiceLoss
 from monai.inferers import sliding_window_inference
-from monai.data import CacheDataset, DataLoader, Dataset
+from monai.data import CacheDataset, DataLoader, Dataset, NiftiSaver
 from monai.config import print_config
 import numpy as np
 import torch
@@ -282,6 +282,14 @@ with torch.no_grad():
         plt.title(f"output {i}")
         plt.imshow(val_outputs.cpu().numpy()[0, 0, :, :, i_slice])
         plt.show()
+
+        # save output as NIFTI
+        meta_data = val_data["image_meta_dict"]
+        file_name = os.path.basename(meta_data["filename_or_obj"][0])
+        output_dir = os.path.join(res_dir, "outputs")
+        NiftiSaver(output_dir).save_batch(val_outputs, meta_data)
+        NiftiSaver(output_dir, output_postfix="").save_batch(val_data["image"], meta_data)
+        NiftiSaver(output_dir, output_postfix="label").save_batch(val_data["label"], meta_data)
 
 # Check the confusion matrix on the validation data
 cpu_device = torch.device("cpu")
