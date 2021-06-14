@@ -37,6 +37,11 @@ root_dir = "./"
 data_dir = os.path.join(root_dir, "data")
 res_dir = os.path.join(root_dir, "results")
 os.makedirs(res_dir, exist_ok=True)
+trained_model_path = os.path.join(res_dir, "net_key_metric=0.7314.pt")
+
+if not os.path.exists(trained_model_path):
+    resource = "https://github.com/Thibault-Pelletier/MonaiWorkshop/blob/e29cdaa46e0097db909478e95c001d303ae963ab/results/net_key_metric=0.7314.pt"
+    download_url(url=resource, filepath=trained_model_path)
 
 # Download data if necessary
 resource = "https://drive.google.com/uc?id=1aMc9eW_fGCphGBjAKDedxu8-aJVcSczd"  # Full 2.9 GB dataset
@@ -252,7 +257,7 @@ plt.show()
 
 # Check best model output with the input image and label for some of the validation data
 # model.load_state_dict(torch.load(os.path.join(res_dir, "best_metric_model.pth")))
-model.load_state_dict(torch.load(os.path.join(res_dir, "net_key_metric=0.7314.pt")))
+model.load_state_dict(torch.load(trained_model_path))
 model.eval()
 
 with torch.no_grad():
