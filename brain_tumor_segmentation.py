@@ -39,8 +39,8 @@ res_dir = os.path.join(root_dir, "results")
 os.makedirs(res_dir, exist_ok=True)
 
 # Download data if necessary
-# resource = "https://drive.google.com/uc?id=1aMc9eW_fGCphGBjAKDedxu8-aJVcSczd"  # Full 2.9 GB dataset
-resource = "https://drive.google.com/uc?id=1rZwPR3CFlFmYTev2YkxTJDfmLrbCiy63"  # Small 200 MB dataset subset
+resource = "https://drive.google.com/uc?id=1aMc9eW_fGCphGBjAKDedxu8-aJVcSczd"  # Full 2.9 GB dataset
+# resource = "https://drive.google.com/uc?id=1rZwPR3CFlFmYTev2YkxTJDfmLrbCiy63"  # Small 200 MB dataset subset
 
 compressed_file = os.path.join(root_dir, "brats2015 - data.zip")
 if not os.path.exists(data_dir):
@@ -137,23 +137,26 @@ check_data = first(check_loader)
 image, label = (check_data["image"][0][0], check_data["label"][0][0])
 print(f"image shape: {image.shape}, label shape: {label.shape}")
 
-# plot the slice [:, :, 80]
+# plot the slice [:, :, 50]
+i_slice = 50
 plt.figure("check", (12, 6))
 plt.subplot(1, 2, 1)
 plt.title("image")
-plt.imshow(image[:, :, 80], cmap="gray")
+plt.imshow(image[:, :, i_slice], cmap="gray")
 plt.subplot(1, 2, 2)
 plt.title("label")
-plt.imshow(label[:, :, 80])
+plt.imshow(label[:, :, i_slice])
 plt.show()
 
 # DataLoader for training and validation+
 # use batch_size=2 to load images and use RandCropByPosNegLabeld
 # to generate 2 x 4 images for network training
-train_ds = CacheDataset(data=train_files, transform=train_transforms, num_workers=0)
+# train_ds = CacheDataset(data=train_files, transform=train_transforms, num_workers=0)
+train_ds = Dataset(data=train_files, transform=train_transforms)
 train_loader = DataLoader(train_ds, batch_size=2, shuffle=True)
 
-val_ds = CacheDataset(data=val_files, transform=val_transforms, num_workers=0)
+# val_ds = CacheDataset(data=val_files, transform=val_transforms, num_workers=0)
+val_ds = Dataset(data=val_files, transform=val_transforms)
 val_loader = DataLoader(val_ds, batch_size=1)
 
 # Create Model, Loss, Optimizer
@@ -248,7 +251,8 @@ plt.plot(x, y)
 plt.show()
 
 # Check best model output with the input image and label for some of the validation data
-model.load_state_dict(torch.load(os.path.join(res_dir, "best_metric_model.pth")))
+# model.load_state_dict(torch.load(os.path.join(res_dir, "best_metric_model.pth")))
+model.load_state_dict(torch.load(os.path.join(res_dir, "net_key_metric=0.7314.pt")))
 model.eval()
 
 with torch.no_grad():
@@ -258,18 +262,20 @@ with torch.no_grad():
 
         roi_size = (96, 96, 96)
         sw_batch_size = 4
-        val_outputs = sliding_window_inference(val_data["image"].to(device), roi_size, sw_batch_size, model)
-        # plot the slice [:, :, 80]
+        val_outputs = post_pred(sliding_window_inference(val_data["image"].to(device), roi_size, sw_batch_size, model))
+
+        # plot the slice [:, :, 50]
+        i_slice = 50
         plt.figure("check", (18, 6))
         plt.subplot(1, 3, 1)
         plt.title(f"image {i}")
-        plt.imshow(val_data["image"][0, 0, :, :, 80], cmap="gray")
+        plt.imshow(val_data["image"][0, 0, :, :, i_slice], cmap="gray")
         plt.subplot(1, 3, 2)
         plt.title(f"label {i}")
-        plt.imshow(val_data["label"][0, 0, :, :, 80])
+        plt.imshow(val_data["label"][0, 0, :, :, i_slice])
         plt.subplot(1, 3, 3)
         plt.title(f"output {i}")
-        plt.imshow(torch.argmax(val_outputs, dim=1).detach().cpu()[0, :, :, 80])
+        plt.imshow(val_outputs.cpu().numpy()[0, 0, :, :, i_slice])
         plt.show()
 
 # Check the confusion matrix on the validation data
