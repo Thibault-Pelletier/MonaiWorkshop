@@ -40,7 +40,7 @@ os.makedirs(res_dir, exist_ok=True)
 trained_model_path = os.path.join(res_dir, "net_key_metric=0.7314.pt")
 
 if not os.path.exists(trained_model_path):
-    resource = "https://github.com/Thibault-Pelletier/MonaiWorkshop/blob/e29cdaa46e0097db909478e95c001d303ae963ab/results/net_key_metric=0.7314.pt"
+    resource = "https://github.com/Thibault-Pelletier/MonaiWorkshop/raw/e29cdaa46e0097db909478e95c001d303ae963ab/results/net_key_metric%3D0.7314.pt"
     download_url(url=resource, filepath=trained_model_path)
 
 # Download data if necessary
